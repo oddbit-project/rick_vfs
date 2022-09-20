@@ -156,24 +156,6 @@ class MinioBucket(VfsVolume):
         except S3Error as e:
             raise VfsError(e)
 
-    def get_replication(self) -> Union[ReplicationConfig, None]:
-        try:
-            return self.client.get_bucket_replication(self.bucket_name)
-        except S3Error as e:
-            raise VfsError(e)
-
-    def set_replication(self, config: ReplicationConfig):
-        try:
-            self.client.set_bucket_replication(self.bucket_name, config)
-        except S3Error as e:
-            raise VfsError(e)
-
-    def remove_replication(self):
-        try:
-            self.client.delete_bucket_replication(self.bucket_name)
-        except S3Error as e:
-            raise VfsError(e)
-
     def set_encryption(self, config: SSEConfig):
         try:
             self.client.set_bucket_encryption(self.bucket_name, config)
@@ -205,6 +187,13 @@ class MinioBucket(VfsVolume):
     def disable_versioning(self):
         try:
             self.client.set_bucket_versioning(self.bucket_name, VersioningConfig('Suspended'))
+        except S3Error as e:
+            raise VfsError(e)
+
+    def get_versioning(self) -> VersioningConfig:
+        try:
+            config = self.client.get_bucket_versioning(self.bucket_name)
+            return config
         except S3Error as e:
             raise VfsError(e)
 
@@ -254,6 +243,8 @@ class MinioBucket(VfsVolume):
         try:
             return self.client.get_object_lock_config(self.bucket_name)
         except S3Error as e:
+            if e.code == 'ObjectLockConfigurationNotFoundError':
+                return None
             raise VfsError(e)
 
     def remove_object_lock(self):
