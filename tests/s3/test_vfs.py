@@ -8,14 +8,16 @@ SSE_CONFIG = SSEConfig(SSERule.new_sse_s3_rule())
 
 
 @pytest.fixture()
-def client():
+def volume():
     client = Minio(
         "localhost:9010",
         secure=False,
         access_key="SomeTestUser",
         secret_key="SomeTestPassword",
     )
-    return MinioBucket(client, 'test-bucket-vfs')
+    volume = MinioBucket(client, 'test-bucket-vfs')
+    yield volume
+    volume.remove()
 
 
 class TestMinioVFS:

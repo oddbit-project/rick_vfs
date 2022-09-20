@@ -1,7 +1,6 @@
 pytest==7.1.2
 pytest-testdox==3.0.1
 pytest-cov==3.0.0
-pytest-docker
 coverage==6.4.4
 flake8==5.0.4
 minio==7.1.11
