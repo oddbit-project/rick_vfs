@@ -19,7 +19,7 @@ class VfsObjectInfo:
     atime = None  # type: datetime.datetime
     mtime = None  # type: datetime.datetime
     owner_id = 0
-    permissions = ''
+    permissions = 0
     attributes = {}
     src = None
     etag = ''
@@ -90,7 +90,6 @@ class VfsContainer(abc.ABC):
     @abc.abstractmethod
     def add_file(self, local_file, file_name, **kwargs) -> Any:
         pass
-
 
 
 class VfsVolume(abc.ABC):

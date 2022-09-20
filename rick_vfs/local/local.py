@@ -121,6 +121,14 @@ class LocalVfs(VfsContainer):
             raise VfsError("Base path not found; volume not initialized?")
 
     def stat(self, object_name, **kwargs) -> Union[VfsObjectInfo, None]:
+        """
+        Get file or directory information
+
+        :param object_name: object to get information
+
+        :param kwargs:
+        :return: VfsObjectInfo object with information, or None if object doesn't exist
+        """
         path = self.volume.resolve_path(object_name)
         if not path.exists():
             return None
@@ -130,6 +138,15 @@ class LocalVfs(VfsContainer):
             raise VfsError(e)
 
     def mkdir(self, directory_name, **kwargs) -> Any:
+        """
+        Creates a path or directory
+
+        If directory_name is a non-existing path, it will be built
+
+        :param directory_name: full path to create inside the volume
+        :param kwargs:
+        :return:
+        """
         path = self.volume.resolve_path(directory_name)
         try:
             os.makedirs(path)
@@ -137,6 +154,13 @@ class LocalVfs(VfsContainer):
             raise VfsError(e)
 
     def rmdir(self, directory_name, **kwargs) -> Any:
+        """
+        Removes an empty directory
+
+        :param directory_name: full path of directory to remove
+        :param kwargs:
+        :return:
+        """
         path = self.volume.resolve_path(directory_name)
         if path == self.root:
             raise VfsError("rmdir(): cannot remove root directory")
@@ -146,9 +170,16 @@ class LocalVfs(VfsContainer):
             raise VfsError(e)
 
     def rmfile(self, file_name, **kwargs) -> Any:
+        """
+        Removes a file
+
+        :param file_name: full path to file to be removed
+        :param kwargs:
+        :return:
+        """
         path = self.volume.resolve_path(file_name)
-        if path == self.root:
-            raise VfsError("rmdir(): cannot remove root directory")
+        if not path.is_file():
+            raise VfsError("rmfile(): cannot remove '{}'; not a file".format(file_name))
         try:
             path.unlink()
         except OSError as e:
@@ -157,6 +188,7 @@ class LocalVfs(VfsContainer):
     def exists(self, file_name, **kwargs) -> bool:
         """
         Check if a given path or file exists
+
         :param file_name: full path to verify
         :param kwargs:
         :return: True if exists, false otherwise
@@ -167,6 +199,7 @@ class LocalVfs(VfsContainer):
     def chmod(self, path, mask, **kwargs):
         """
         Posix chmod of files or folders
+
         :param path: full path for item to change permissions
         :param mask: permission mask
         :param kwargs:
@@ -181,6 +214,15 @@ class LocalVfs(VfsContainer):
             raise VfsError(e)
 
     def chown(self, path, owner_id, group_id, **kwargs):
+        """
+        Posix chown of files or folders
+
+        :param path: full path for item to change owner
+        :param owner_id: owner id
+        :param group_id: group id
+        :param kwargs:
+        :return:
+        """
         path = self.volume.resolve_path(path)
         if path == self.root:
             raise VfsError("chown(): cannot change root folder owner")
@@ -236,6 +278,10 @@ class LocalVfs(VfsContainer):
         try:
             # open file and return fd
             return open(str(path), mode=mode, encoding=encoding, newline=newline)
+
+        except FileNotFoundError as e:
+            raise VfsError(e)
+
         except BaseException as e:
             raise VfsError(e)
 
@@ -262,6 +308,9 @@ class LocalVfs(VfsContainer):
                 result = BytesIO(f.read(length))
                 result.seek(0)
                 return result
+
+        except FileNotFoundError as e:
+            raise VfsError(e)
 
         except OSError as e:
             raise VfsError(e)
@@ -290,6 +339,9 @@ class LocalVfs(VfsContainer):
                 result.seek(0)
                 return result
 
+        except FileNotFoundError as e:
+            raise VfsError(e)
+
         except OSError as e:
             raise VfsError(e)
 
@@ -315,6 +367,10 @@ class LocalVfs(VfsContainer):
             with open(path, 'wb') as f:
                 buffer.seek(0)
                 f.write(buffer.read())
+
+        except FileNotFoundError as e:
+            raise VfsError(e)
+
         except OSError as e:
             raise VfsError(e)
 
