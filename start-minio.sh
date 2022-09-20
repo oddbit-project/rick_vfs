@@ -8,5 +8,5 @@ docker run \
   -p 9011:9001 \
   -e "MINIO_ROOT_USER=SomeTestUser" \
   -e "MINIO_ROOT_PASSWORD=SomeTestPassword" \
-  quay.io/minio/minio server /data --console-address ":9001"
+  -d quay.io/minio/minio server /data --console-address ":9001"
 
