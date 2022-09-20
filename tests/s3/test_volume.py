@@ -22,13 +22,13 @@ POLICY_READ_ONLY = {
             "Effect": "Allow",
             "Principal": {"AWS": ["*"]},
             "Action": ["s3:GetBucketLocation", "s3:ListBucket"],
-            "Resource": ["arn:aws:s3:::"+TEST_BUCKET],
+            "Resource": ["arn:aws:s3:::" + TEST_BUCKET],
         },
         {
             "Effect": "Allow",
             "Principal": {"AWS": ["*"]},
             "Action": ["s3:GetObject"],
-            "Resource": ["arn:aws:s3:::"+TEST_BUCKET+"/*"],
+            "Resource": ["arn:aws:s3:::" + TEST_BUCKET + "/*"],
         },
     ],
 }
@@ -47,8 +47,6 @@ LIFE_CYCLE = LifecycleConfig(
 LOCK_CONFIG = ObjectLockConfig(GOVERNANCE, 15, DAYS)
 
 SSE_CONFIG = SSEConfig(SSERule.new_sse_s3_rule())
-
-
 
 
 @pytest.fixture()
@@ -145,8 +143,8 @@ class TestMinioVolume:
         volume.create()
 
         tags = Tags()
-        for i in range(1,5):
-            tags['tag'+str(i)] = "this is tag "+str(i)
+        for i in range(1, 5):
+            tags['tag' + str(i)] = "this is tag " + str(i)
 
         bucket_tags = volume.get_tags()
         assert bucket_tags is None
@@ -170,7 +168,7 @@ class TestMinioVolume:
         volume.create(object_lock=True)
         cfg = volume.get_object_lock()
         assert cfg is not None
-        assert cfg.mode is None # empty rule
+        assert cfg.mode is None  # empty rule
 
         # set proper lock configuration
         volume.set_object_lock(LOCK_CONFIG)
