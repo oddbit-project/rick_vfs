@@ -48,7 +48,7 @@ def test_init():
     assert volume.resolve_path('a/b/c') == root / Path('a/b/c')
 
 
-def test_remove():
+def test_remove_purge():
     root = get_temp_dir()
     assert root.exists() is False
     volume = LocalVolume(root)
@@ -58,7 +58,7 @@ def test_remove():
     os.makedirs(root / Path('a/b/c'))
 
     # destroy volume
-    volume.remove()
+    volume.purge()
     assert volume.exists() is False
     assert root.exists() is False
 
@@ -71,7 +71,7 @@ def test_create():
     volume.create()
     assert volume.exists() is True
     assert volume.root_path() == str(root)
-    volume.remove()
+    volume.purge()
 
 
 @pytest.mark.parametrize('prel, pabs', resolve_paths)

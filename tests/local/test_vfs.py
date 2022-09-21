@@ -16,7 +16,7 @@ def volume():
     root = get_temp_dir()
     volume = LocalVolume(root)
     yield volume
-    volume.remove()
+    volume.purge()
 
 
 class TestLocalVfs:

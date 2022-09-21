@@ -92,6 +92,19 @@ class LocalVolume(VfsVolume):
 
     def remove(self, **kwargs):
         """
+        Removes the local volume
+        The volume folder must be empty
+        :param kwargs:
+        :return:
+        """
+        if self.exists():
+            try:
+                self.root.rmdir()
+            except OSError as e:
+                raise VfsError(e)
+
+    def purge(self, **kwargs):
+        """
         Removes the whole local volume directory tree
         This operation is not reversible, use with care - all data will be lost!
         :param kwargs:

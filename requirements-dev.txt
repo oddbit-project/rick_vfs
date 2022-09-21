@@ -9,3 +9,4 @@ setuptools==45.2.0
 mkdocs==1.2.3
 mkdocs-material==8.1.2
 mkdocs-material-extensions==1.0.3
+tox==3.21.6

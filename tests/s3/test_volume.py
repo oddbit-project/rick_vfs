@@ -73,7 +73,7 @@ class TestMinioVolume:
         assert volume.exists() is True
 
         # remove test bucket
-        volume.remove()
+        volume.purge()
         assert volume.exists() is False
         # force creation of test bucket
         volume.create()
@@ -84,7 +84,6 @@ class TestMinioVolume:
         assert volume.exists() is True
 
         buckets = volume.list_buckets()
-        assert len(buckets) == 1
         names = []
         for b in buckets:
             names.append(b.name)
@@ -93,7 +92,7 @@ class TestMinioVolume:
     def test_policy(self, client):
         volume = MinioBucket(client, TEST_BUCKET)
         # ensure the bucket is completely clean
-        volume.remove()
+        volume.purge()
         volume.create()
         # no existing policy, should raise exception
         with pytest.raises(VfsError):
@@ -111,7 +110,7 @@ class TestMinioVolume:
     def test_versioning(self, client):
         volume = MinioBucket(client, TEST_BUCKET)
         # ensure the bucket is completely clean
-        volume.remove()
+        volume.purge()
         volume.create()
 
         volume.disable_versioning()
@@ -124,7 +123,7 @@ class TestMinioVolume:
     def test_lifecycle(self, client):
         volume = MinioBucket(client, TEST_BUCKET)
         # ensure the bucket is completely clean
-        volume.remove()
+        volume.purge()
         volume.create()
 
         cfg = volume.get_lifecycle()
@@ -139,7 +138,7 @@ class TestMinioVolume:
     def test_tags(self, client):
         volume = MinioBucket(client, TEST_BUCKET)
         # ensure the bucket is completely clean
-        volume.remove()
+        volume.purge()
         volume.create()
 
         tags = Tags()
@@ -158,13 +157,13 @@ class TestMinioVolume:
     def test_lock(self, client):
         volume = MinioBucket(client, TEST_BUCKET)
         # ensure the bucket is completely clean
-        volume.remove()
+        volume.purge()
         volume.create()
 
         cfg = volume.get_object_lock()
         assert cfg is None
         # lets remove it and re-create with lock enabled
-        volume.remove()
+        volume.purge()
         volume.create(object_lock=True)
         cfg = volume.get_object_lock()
         assert cfg is not None

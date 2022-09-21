@@ -109,3 +109,7 @@ class VfsVolume(abc.ABC):
     @abc.abstractmethod
     def remove(self, **kwargs):
         pass
+
+    @abc.abstractmethod
+    def purge(self, **kwargs):
+        pass

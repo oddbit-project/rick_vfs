@@ -9,7 +9,6 @@ from minio.commonconfig import Tags
 from minio.helpers import check_bucket_name
 from minio.lifecycleconfig import LifecycleConfig
 from minio.objectlockconfig import ObjectLockConfig
-from minio.replicationconfig import ReplicationConfig
 from minio.retention import Retention
 from minio.sseconfig import SSEConfig
 from minio.versioningconfig import VersioningConfig
@@ -37,7 +36,9 @@ class MinioObjectInfo(VfsObjectInfo):
         self.owner_id = src.owner_id
 
         # private access to underlying OrderedDict of HTTPHeaderDict
-        self.attributes = ordered_dict_to_dict(src.metadata._container)
+        if src.metadata is not None:
+            if getattr(src.metadata, '_container', None) is not None:
+                self.attributes = ordered_dict_to_dict(src.metadata._container)
         self.etag = src.etag
         self.version_id = src.version_id
         self.is_latest = src.is_latest
@@ -125,6 +126,39 @@ class MinioBucket(VfsVolume):
         """
         try:
             self.client.remove_bucket(self.bucket_name)
+        except S3Error as e:
+            raise VfsError(e)
+
+    def purge(self, **kwargs):
+        """
+        Remove an existing bucket and all its contents
+
+        This is a naive, non-threaded implementation, mostly suitable to cleanup test buckets; as such, using
+        this in buckets with thousands of items or more will take a very long time
+
+        :return:
+        """
+        try:
+            # remove contents
+            self._clean_dir('')
+            # remove bucket
+            self.remove()
+
+        except S3Error as e:
+            raise VfsError(e)
+
+    def _clean_dir(self, path):
+        try:
+            path = str(path)
+            if not path.endswith('/'):
+                path = path + '/'
+            for item in self.client.list_objects(self.bucket_name, path):
+                if item.object_name != path:
+                    if item.is_dir:
+                        self._clean_dir(item.object_name)
+                        self.client.remove_object(self.bucket_name, item.object_name)
+                    else:
+                        self.client.remove_object(self.bucket_name, item.object_name)
         except S3Error as e:
             raise VfsError(e)
 
@@ -262,6 +296,15 @@ class MinioVfs(VfsContainer):
         self.bucket_name = volume.bucket_name
 
     def stat(self, object_name, **kwargs) -> Union[VfsObjectInfo, None]:
+        """
+        Get file or directory information
+
+        If object_name is a directory, it must end with '/'
+
+        :param object_name:
+        :param kwargs:
+        :return:
+        """
         try:
             info = self.client.stat_object(self.bucket_name, object_name, **kwargs)
             return MinioObjectInfo(info)
@@ -270,16 +313,42 @@ class MinioVfs(VfsContainer):
                 return None
             raise VfsError(e)
 
+    def stat_dir(self, directory_name, **kwargs) -> Union[VfsObjectInfo, None]:
+        """
+        Get directory information
+
+        This method ensures directory_name ends with '/' before calling stat()
+
+        :param directory_name:
+        :param kwargs:
+        :return:
+        """
+        directory_name = str(directory_name)
+        if not directory_name.endswith('/'):
+            directory_name = str(directory_name) + '/'
+        return self.stat(directory_name, **kwargs)
+
     def mkdir(self, directory_name, **kwargs) -> Any:
         try:
-            if not str(directory_name).endswith('/'):
+            directory_name = str(directory_name)
+            if not directory_name.endswith('/'):
                 directory_name = str(directory_name) + '/'
             return self.client.put_object(self.bucket_name, directory_name, length=0, data=BytesIO(b""), **kwargs)
         except S3Error as e:
             raise VfsError(e)
 
     def rmdir(self, directory_name, **kwargs) -> Any:
+        """
+        Removes a directory
+
+        :param directory_name: full path for directory
+        :param kwargs:
+        :return:
+        """
         try:
+            directory_name = str(directory_name)
+            if not directory_name.endswith('/'):
+                directory_name = str(directory_name) + '/'
             info = self.client.stat_object(self.bucket_name, directory_name, **kwargs)
             if info is not None and info.is_dir:
                 return self.client.remove_object(self.bucket_name, directory_name, **kwargs)
@@ -298,6 +367,7 @@ class MinioVfs(VfsContainer):
         :return: Object
         """
         try:
+            file_name = str(file_name)
             return self.client.remove_object(self.bucket_name, file_name, **kwargs)
         except S3Error as e:
             raise VfsError(e)
@@ -306,17 +376,35 @@ class MinioVfs(VfsContainer):
         """
         Check if a given object exists
 
+        Directories must end with '/'
+
         :param file_name: full path for object to check
         :param kwargs:
         :return: True if object exists, false otherwise
         """
         try:
+            file_name = str(file_name)
             info = self.client.stat_object(self.bucket_name, file_name, **kwargs)
             return info is not None
         except S3Error as e:
             if e.code == 'NoSuchKey':
                 return False
             raise VfsError(e)
+
+    def dir_exists(self, directory_name, **kwargs) -> bool:
+        """
+        Check if a given directory exists
+
+        Alias to exists() that ensures that directory_name ends with '/'
+
+        :param file_name: full path for directory to check
+        :param kwargs:
+        :return: True if object exists, false otherwise
+        """
+        directory_name = str(directory_name)
+        if not directory_name.endswith('/'):
+            directory_name = str(directory_name) + '/'
+        return self.exists(directory_name, **kwargs)
 
     def chmod(self, path, mask, **kwargs):
         raise VfsError("chmod(): non-supported operation in current backend; use bucket policies instead")
@@ -337,6 +425,7 @@ class MinioVfs(VfsContainer):
         # generate temp file name
         tmp_file = tempfile.mktemp()
         try:
+            file_name = str(file_name)
             # fetch from server to temp file
             _ = self.client.fget_object(self.bucket_name, file_name, tmp_file, **kwargs)
             return Path(tmp_file)
@@ -375,6 +464,7 @@ class MinioVfs(VfsContainer):
         # generate temp file name
         tmp_file = tempfile.mktemp()
         try:
+            file_name = str(file_name)
             # fetch from server to temp file
             _ = self.client.fget_object(self.bucket_name, file_name, tmp_file, **kwargs)
 
@@ -403,6 +493,7 @@ class MinioVfs(VfsContainer):
         :return: BytesIO buffer
         """
         try:
+            file_name = str(file_name)
             response = self.client.get_object(self.bucket_name, file_name, offset=offset, length=length, **kwargs)
             result = BytesIO(response.read())
             response.close()
@@ -424,6 +515,7 @@ class MinioVfs(VfsContainer):
         :return: BytesIO buffer
         """
         try:
+            file_name = str(file_name)
             response = self.client.get_object(self.bucket_name, file_name, offset=offset, length=length, **kwargs)
             result = StringIO(str(response.read(), 'utf-8'))
             response.close()
@@ -444,6 +536,7 @@ class MinioVfs(VfsContainer):
         :return: url to download the file
         """
         try:
+            file_name = str(file_name)
             return self.client.get_presigned_url('GET', self.bucket_name, file_name, expires=expires, **kwargs)
 
         except S3Error as e:
@@ -459,6 +552,7 @@ class MinioVfs(VfsContainer):
         :return: url to download the file
         """
         try:
+            file_name = str(file_name)
             return self.client.get_presigned_url('PUT', self.bucket_name, file_name, expires=expires, **kwargs)
 
         except S3Error as e:
@@ -473,6 +567,7 @@ class MinioVfs(VfsContainer):
         :return: ObjectWriteResult object
         """
         try:
+            file_name = str(file_name)
             content_type = magic.from_buffer(buffer.getbuffer().tobytes(), mime=True)
             buffer.seek(0)
             return self.client.put_object(self.bucket_name, file_name, buffer, buffer.getbuffer().nbytes,
@@ -493,6 +588,7 @@ class MinioVfs(VfsContainer):
         if not local_file.exists() or not local_file.is_file():
             raise VfsError("add_file(): invalid or non-existing local file")
         try:
+            file_name = str(file_name)
             content_type = magic.from_file(local_file, mime=True)
             return self.client.fput_object(self.bucket_name, file_name, local_file, content_type=content_type, **kwargs)
         except S3Error as e:
@@ -507,6 +603,7 @@ class MinioVfs(VfsContainer):
         :return: Tags object
         """
         try:
+            object_name = str(object_name)
             return self.client.get_object_tags(self.bucket_name, object_name, **kwargs)
         except S3Error as e:
             raise VfsError(e)
@@ -534,6 +631,7 @@ class MinioVfs(VfsContainer):
         :return: None
         """
         try:
+            object_name = str(object_name)
             self.client.delete_object_tags(self.bucket_name, object_name, **kwargs)
         except S3Error as e:
             raise VfsError(e)
@@ -547,6 +645,7 @@ class MinioVfs(VfsContainer):
         :return: Retention
         """
         try:
+            object_name = str(object_name)
             return self.client.get_object_retention(self.bucket_name, object_name, **kwargs)
         except S3Error as e:
             raise VfsError(e)
@@ -561,6 +660,7 @@ class MinioVfs(VfsContainer):
         :return: None
         """
         try:
+            object_name = str(object_name)
             self.client.set_object_retention(self.bucket_name, object_name, retention, **kwargs)
         except S3Error as e:
             raise VfsError(e)
@@ -577,6 +677,7 @@ class MinioVfs(VfsContainer):
         """
         result = []
         try:
+            path = str(path)
             for item in self.client.list_objects(self.bucket_name, prefix=path, **kwargs):
                 result.append(MinioObjectInfo(item))
             return result

@@ -16,7 +16,37 @@ be differences between invoking a given method on two different backends.
 
 
 Example:
-```
+```python
+from io import BytesIO
+from minio import Minio
+from rick_vfs.s3 import MinioBucket, MinioVfs
 
+client = Minio(
+    "localhost:9010",
+    secure=False,
+    access_key="SomeTestUser",
+    secret_key="SomeTestPassword",
+)
 
+# initialize bucket
+volume = MinioBucket(client, 'my-bucket')
+# initialize VFS object
+vfs = MinioVfs(volume)
+
+# create directory
+vfs.mkdir("contents/files")
+
+# create file from buffer
+buf = BytesIO(b'the quick brown fox jumps over the lazy dog')
+vfs.write_file(buf, 'contents/files/my_test_file')
+
+# read file
+contents = vfs.read_file('my_test_file')
+# print contents
+print(str(contents.getbuffer().tobytes(), 'utf-8'))
+
+# list bucket contents
+print("Bucket contents:")
+for item in vfs.ls():
+    print(item.object_name)
 ```
