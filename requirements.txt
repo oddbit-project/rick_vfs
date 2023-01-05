@@ -1,4 +1,4 @@
 minio==7.1.11
 python-magic==0.4.27
 pytest~=6.1.2
-setuptools~=45.2.0
+setuptools~=60.0.0
