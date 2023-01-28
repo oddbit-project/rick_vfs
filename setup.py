@@ -20,7 +20,7 @@ setup(
     version=version,
     author="Joao Pinheiro",
     author_email="",
-    url="https://github.com/oddbit-project/rick_vfs",
+    url="https://git.oddbit.org/OddBit/rick_vfs",
     description='Minio/S3 client VFS abstraction library',
     license='BSD',
     long_description=description,

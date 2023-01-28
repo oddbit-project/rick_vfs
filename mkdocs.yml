@@ -1,9 +1,9 @@
 site_name: Rick-VFS
 site_description: Minio/S3 client VFS abstraction library
 strict: true
-site_url: https://github.com/oddbit-project/rick_vfs/
-repo_name: oddbit-project/rick_vfs
-repo_url: https://github.com/oddbit-project/rick_vfs/
+site_url: https://git.oddbit.org/OddBit/rick_vfs
+repo_name: OddBit/rick_vfs
+repo_url: https://git.oddbit.org/OddBit/rick_vfs
 
 theme:
   name: material
