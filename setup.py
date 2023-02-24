@@ -40,10 +40,11 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     python_requires=">=3.8",
-    extras_require={
-        "minio": ["minio >= 7.1.11"]
-    },
-    install_requires=[],
+    extras_require={},
+    install_requires=[
+        'python-magic==0.4.27',
+        'minio>=7.1.11',
+    ],
     zip_safe=False,
     tests_require=[
     ],
