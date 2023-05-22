@@ -43,7 +43,7 @@ setup(
     extras_require={},
     install_requires=[
         'python-magic==0.4.27',
-        'minio>=7.1.11',
+        'minio>=7.1.15',
     ],
     zip_safe=False,
     tests_require=[

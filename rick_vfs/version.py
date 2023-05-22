@@ -1,4 +1,4 @@
-RICK_VFS_VERSION = ["0", "1", "0"]
+RICK_VFS_VERSION = ["1", "0", "0"]
 
 
 def get_version():
