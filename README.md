@@ -2,6 +2,8 @@
 
 Minio/S3 client VFS abstraction library
 
+[![Tests](https://github.com/oddbit-project/rick_vfs/workflows/Tests/badge.svg?branch=master)](https://github.com/oddbit-project/rick_vfs/actions)
+[![pypi](https://img.shields.io/pypi/v/rick_vfs.svg)](https://pypi.org/project/rick-vfs/)
 [![license](https://img.shields.io/pypi/l/rick_vfs.svg)](https://git.oddbit.org/OddBit/rick_vfs/src/branch/master/LICENSE)
 
 Rick-vfs is a high-level abstraction library for file operations on local repositories (a locally accessible folder) and 
