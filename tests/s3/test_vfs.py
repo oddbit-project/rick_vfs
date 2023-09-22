@@ -106,9 +106,9 @@ class TestMinioVFS:
         assert fd is not None
         assert fd.read() == buf.getbuffer()
         fname = Path(fd.name)
-        assert fname.exists() is True
+        assert fname.exists()
         fd.close()  # closes & REMOVES file
-        assert fname.exists() is False
+        assert not fname.exists()
 
         # test open file with "with"
         fname = None
@@ -116,7 +116,7 @@ class TestMinioVFS:
             assert f.read() == buf.getbuffer()
             fname = Path(f.name)
         # file automatically closed & removed
-        assert fname.exists() is False
+        assert not fname.exists()
 
     def test_read_file(self, volume):
         vfs = MinioVfs(volume)
@@ -204,7 +204,7 @@ class TestMinioVFS:
         assert tags is None
         tags = Tags()
         for i in range(1, 5):
-            tags['tag' + str(i)] = "this is tag " + str(i)
+            tags[f'tag{str(i)}'] = f"this is tag {str(i)}"
         vfs.set_tags(file, tags)
 
         # read tags
@@ -228,14 +228,10 @@ class TestMinioVFS:
         assert vfs.exists(file) is True
 
         vfs.mkdir('folder1/folder2')
-        names_list = []
-        for item in vfs.ls():
-            names_list.append(item.object_name)
+        names_list = [item.object_name for item in vfs.ls()]
         for k in ['folder1/', 'test_ls']:
             assert k in names_list
 
-        names_list = []
-        for item in vfs.ls('folder1/'):
-            names_list.append(item.object_name)
+        names_list = [item.object_name for item in vfs.ls('folder1/')]
         for k in ['folder1/folder2/']:
             assert k in names_list

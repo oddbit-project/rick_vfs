@@ -86,9 +86,8 @@ class LocalVolume(VfsVolume):
                 os.makedirs(self.root)
             except OSError as e:
                 raise VfsError(e)
-        else:
-            if not self.root.is_dir():
-                raise ValueError("Invalid root path '{}': not a directory".format(self.root))
+        elif not self.root.is_dir():
+            raise ValueError(f"Invalid root path '{self.root}': not a directory")
 
     def remove(self, **kwargs):
         """
@@ -192,7 +191,7 @@ class LocalVfs(VfsContainer):
         """
         path = self.volume.resolve_path(file_name)
         if not path.is_file():
-            raise VfsError("rmfile(): cannot remove '{}'; not a file".format(file_name))
+            raise VfsError(f"rmfile(): cannot remove '{file_name}'; not a file")
         try:
             path.unlink()
         except OSError as e:
@@ -254,7 +253,9 @@ class LocalVfs(VfsContainer):
         """
         path = self.volume.resolve_path(file_name)
         if not path.is_file():
-            raise VfsError("get_local_file(): file '{}' does not exist or is not a file".format(file_name))
+            raise VfsError(
+                f"get_local_file(): file '{file_name}' does not exist or is not a file"
+            )
         return path
 
     def open_file(self, file_name, **kwargs) -> Any:
@@ -279,13 +280,15 @@ class LocalVfs(VfsContainer):
         """
         path = self.volume.resolve_path(file_name)
         if not path.is_file():
-            raise VfsError("open_file(): file '{}' does not exist or is not a file".format(file_name))
+            raise VfsError(
+                f"open_file(): file '{file_name}' does not exist or is not a file"
+            )
 
         mode = dict_extract(kwargs, 'mode', 'rb')
         encoding = dict_extract(kwargs, 'encoding', None)
         newline = dict_extract(kwargs, 'newline', None)
         for key in ['mode', 'encoding', 'newline']:
-            if key in kwargs.keys():
+            if key in kwargs:
                 del kwargs[key]
 
         try:
@@ -310,7 +313,9 @@ class LocalVfs(VfsContainer):
         """
         path = self.volume.resolve_path(file_name)
         if not path.is_file():
-            raise VfsError("read_file(): file '{}' does not exist or is not a file".format(file_name))
+            raise VfsError(
+                f"read_file(): file '{file_name}' does not exist or is not a file"
+            )
 
         if length == 0:
             length = -1
@@ -321,9 +326,6 @@ class LocalVfs(VfsContainer):
                 result = BytesIO(f.read(length))
                 result.seek(0)
                 return result
-
-        except FileNotFoundError as e:
-            raise VfsError(e)
 
         except OSError as e:
             raise VfsError(e)
@@ -340,7 +342,9 @@ class LocalVfs(VfsContainer):
         """
         path = self.volume.resolve_path(file_name)
         if not path.is_file():
-            raise VfsError("read_file_text(): file '{}' does not exist or is not a file".format(file_name))
+            raise VfsError(
+                f"read_file_text(): file '{file_name}' does not exist or is not a file"
+            )
 
         if length == 0:
             length = -1
@@ -351,9 +355,6 @@ class LocalVfs(VfsContainer):
                 result = StringIO(str(f.read(length), 'utf-8'))
                 result.seek(0)
                 return result
-
-        except FileNotFoundError as e:
-            raise VfsError(e)
 
         except OSError as e:
             raise VfsError(e)
@@ -380,9 +381,6 @@ class LocalVfs(VfsContainer):
             with open(path, 'wb') as f:
                 buffer.seek(0)
                 f.write(buffer.read())
-
-        except FileNotFoundError as e:
-            raise VfsError(e)
 
         except OSError as e:
             raise VfsError(e)

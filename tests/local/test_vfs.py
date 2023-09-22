@@ -148,7 +148,7 @@ class TestLocalVfs:
         assert vfs.exists(folder_name) is False
         vfs.mkdir(folder_name)
         # now, create a file
-        fname = folder_name + '/sample.txt'
+        fname = f'{folder_name}/sample.txt'
         fcontents = b'The quick brown dog jumps over the lazy fox'
         buffer = BytesIO(fcontents)
         vfs.write_file(buffer, fname)
@@ -172,7 +172,7 @@ class TestLocalVfs:
         assert vfs.exists(folder_name) is False
         vfs.mkdir(folder_name)
         # now, create a file
-        fname = folder_name + '/sample.txt'
+        fname = f'{folder_name}/sample.txt'
         fcontents = b'The quick brown dog jumps over the lazy fox'
         buffer = BytesIO(fcontents)
         vfs.write_file(buffer, fname)
@@ -194,7 +194,7 @@ class TestLocalVfs:
         assert vfs.exists(folder_name) is False
         vfs.mkdir(folder_name)
         # now, create a file
-        fname = folder_name + '/sample.txt'
+        fname = f'{folder_name}/sample.txt'
         fcontents = b'The quick brown dog jumps over the lazy fox'
         buffer = BytesIO(fcontents)
         vfs.write_file(buffer, fname)
@@ -215,7 +215,7 @@ class TestLocalVfs:
         assert vfs.exists(folder_name) is False
         vfs.mkdir(folder_name)
         # now, create a file
-        fname = folder_name + '/sample.txt'
+        fname = f'{folder_name}/sample.txt'
         fcontents = b'The quick brown dog jumps over the lazy fox'
         buffer = BytesIO(fcontents)
         vfs.write_file(buffer, fname)

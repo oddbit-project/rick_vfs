@@ -6,9 +6,7 @@ from pathlib import Path
 
 
 def dict_extract(src: dict, key: str, default=None):
-    if key in src.keys():
-        return src[key]
-    return default
+    return src.get(key, default)
 
 
 def ordered_dict_to_dict(src: OrderedDict) -> dict:

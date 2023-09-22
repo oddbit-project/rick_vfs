@@ -22,13 +22,13 @@ POLICY_READ_ONLY = {
             "Effect": "Allow",
             "Principal": {"AWS": ["*"]},
             "Action": ["s3:GetBucketLocation", "s3:ListBucket"],
-            "Resource": ["arn:aws:s3:::" + TEST_BUCKET],
+            "Resource": [f"arn:aws:s3:::{TEST_BUCKET}"],
         },
         {
             "Effect": "Allow",
             "Principal": {"AWS": ["*"]},
             "Action": ["s3:GetObject"],
-            "Resource": ["arn:aws:s3:::" + TEST_BUCKET + "/*"],
+            "Resource": [f"arn:aws:s3:::{TEST_BUCKET}/*"],
         },
     ],
 }
@@ -51,13 +51,12 @@ SSE_CONFIG = SSEConfig(SSERule.new_sse_s3_rule())
 
 @pytest.fixture()
 def client():
-    client = Minio(
+    return Minio(
         "localhost:9010",
         secure=False,
         access_key="SomeTestUser",
         secret_key="SomeTestPassword",
     )
-    return client
 
 
 class TestMinioVolume:
@@ -84,9 +83,7 @@ class TestMinioVolume:
         assert volume.exists() is True
 
         buckets = volume.list_buckets()
-        names = []
-        for b in buckets:
-            names.append(b.name)
+        names = [b.name for b in buckets]
         assert TEST_BUCKET in names
 
     def test_policy(self, client):
@@ -143,7 +140,7 @@ class TestMinioVolume:
 
         tags = Tags()
         for i in range(1, 5):
-            tags['tag' + str(i)] = "this is tag " + str(i)
+            tags[f'tag{str(i)}'] = f"this is tag {str(i)}"
 
         bucket_tags = volume.get_tags()
         assert bucket_tags is None

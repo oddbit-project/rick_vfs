@@ -151,14 +151,12 @@ class MinioBucket(VfsVolume):
         try:
             path = str(path)
             if not path.endswith('/'):
-                path = path + '/'
+                path += '/'
             for item in self.client.list_objects(self.bucket_name, path):
                 if item.object_name != path:
                     if item.is_dir:
                         self._clean_dir(item.object_name)
-                        self.client.remove_object(self.bucket_name, item.object_name)
-                    else:
-                        self.client.remove_object(self.bucket_name, item.object_name)
+                    self.client.remove_object(self.bucket_name, item.object_name)
         except S3Error as e:
             raise VfsError(e)
 
@@ -209,10 +207,7 @@ class MinioBucket(VfsVolume):
             raise VfsError(e)
 
     def enable_versioning(self, mfa_delete=False):
-        if not mfa_delete:
-            mfa_delete = 'Disabled'
-        else:
-            mfa_delete = 'Enabled'
+        mfa_delete = 'Disabled' if not mfa_delete else 'Enabled'
         try:
             self.client.set_bucket_versioning(self.bucket_name, VersioningConfig('Enabled', mfa_delete))
         except S3Error as e:
@@ -226,8 +221,7 @@ class MinioBucket(VfsVolume):
 
     def get_versioning(self) -> VersioningConfig:
         try:
-            config = self.client.get_bucket_versioning(self.bucket_name)
-            return config
+            return self.client.get_bucket_versioning(self.bucket_name)
         except S3Error as e:
             raise VfsError(e)
 
@@ -325,14 +319,14 @@ class MinioVfs(VfsContainer):
         """
         directory_name = str(directory_name)
         if not directory_name.endswith('/'):
-            directory_name = str(directory_name) + '/'
+            directory_name += '/'
         return self.stat(directory_name, **kwargs)
 
     def mkdir(self, directory_name, **kwargs) -> Any:
         try:
             directory_name = str(directory_name)
             if not directory_name.endswith('/'):
-                directory_name = str(directory_name) + '/'
+                directory_name += '/'
             return self.client.put_object(self.bucket_name, directory_name, length=0, data=BytesIO(b""), **kwargs)
         except S3Error as e:
             raise VfsError(e)
@@ -348,12 +342,12 @@ class MinioVfs(VfsContainer):
         try:
             directory_name = str(directory_name)
             if not directory_name.endswith('/'):
-                directory_name = str(directory_name) + '/'
+                directory_name += '/'
             info = self.client.stat_object(self.bucket_name, directory_name, **kwargs)
             if info is not None and info.is_dir:
                 return self.client.remove_object(self.bucket_name, directory_name, **kwargs)
             else:
-                raise VfsError("rmdir(): '{}' is not a directory".format(directory_name))
+                raise VfsError(f"rmdir(): '{directory_name}' is not a directory")
         except S3Error as e:
             raise VfsError(e)
 
@@ -403,7 +397,7 @@ class MinioVfs(VfsContainer):
         """
         directory_name = str(directory_name)
         if not directory_name.endswith('/'):
-            directory_name = str(directory_name) + '/'
+            directory_name += '/'
         return self.exists(directory_name, **kwargs)
 
     def chmod(self, path, mask, **kwargs):
@@ -458,7 +452,7 @@ class MinioVfs(VfsContainer):
         encoding = dict_extract(kwargs, 'encoding', None)
         newline = dict_extract(kwargs, 'newline', None)
         for key in ['mode', 'encoding', 'newline']:
-            if key in kwargs.keys():
+            if key in kwargs:
                 del kwargs[key]
 
         # generate temp file name
@@ -678,8 +672,12 @@ class MinioVfs(VfsContainer):
         result = []
         try:
             path = str(path)
-            for item in self.client.list_objects(self.bucket_name, prefix=path, **kwargs):
-                result.append(MinioObjectInfo(item))
+            result.extend(
+                MinioObjectInfo(item)
+                for item in self.client.list_objects(
+                    self.bucket_name, prefix=path, **kwargs
+                )
+            )
             return result
         except S3Error as e:
             raise VfsError(e)
