@@ -48,6 +48,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `MinioContainer` fixture replaces the externally managed MinIO, removing the
   hardcoded endpoint and credentials from the S3 tests. `tox.ini` and
   `requirements-dev.txt` updated accordingly.
+- **BREAKING:** dropped Python 3.8 and 3.9 support. Minimum is now Python 3.10
+  (`python_requires=">=3.10"`), driven by `testcontainers` 4.x. The CI/tox
+  matrix and `setup.py` classifiers are updated to 3.10 and 3.11.
 
 ### Removed
 
