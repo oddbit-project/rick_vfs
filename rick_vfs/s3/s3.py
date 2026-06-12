@@ -17,8 +17,10 @@ from minio.versioningconfig import VersioningConfig
 from minio import Minio, S3Error
 from minio.datatypes import Object, Bucket
 
+from minio.deleteobjects import DeleteObject
+
 from rick_vfs.utils import dict_extract
-from rick_vfs.vfs import VfsObjectInfo, VfsVolume, VfsError, VfsContainer
+from rick_vfs.vfs import VfsObjectInfo, VfsVolume, VfsError, VfsContainer, VfsLockableVolume, VfsObjectLock
 
 
 class MinioObjectInfo(VfsObjectInfo):
@@ -41,12 +43,17 @@ class MinioObjectInfo(VfsObjectInfo):
             self.attributes = dict(src.metadata)
         self.etag = src.etag
         self.version_id = src.version_id
-        self.is_latest = src.is_latest
+        # minio returns is_latest as the raw 'true'/'false' string in version listings,
+        # and None for non-versioned stat() responses (which represent the current object)
+        if src.is_latest is None:
+            self.is_latest = True
+        else:
+            self.is_latest = str(src.is_latest).lower() == 'true'
         self.is_dir = src.is_dir
         self.is_file = not src.is_dir
 
 
-class MinioBucket(VfsVolume):
+class MinioBucket(VfsVolume, VfsLockableVolume):
     """
     MinioBucket allows the usage of a  MinIO/S3 bucket as root for VFS operations
 
@@ -287,25 +294,26 @@ class MinioBucket(VfsVolume):
             raise VfsError(e)
 
 
-class MinioVfs(VfsContainer):
+class MinioVfs(VfsContainer, VfsObjectLock):
 
     def __init__(self, volume: MinioBucket):
         self.volume = volume
         self.client = volume.client
         self.bucket_name = volume.bucket_name
 
-    def stat(self, object_name, **kwargs) -> Union[VfsObjectInfo, None]:
+    def stat(self, object_name, version_id=None, **kwargs) -> Union[VfsObjectInfo, None]:
         """
         Get file or directory information
 
         If object_name is a directory, it must end with '/'
 
         :param object_name:
+        :param version_id: optional object version id
         :param kwargs:
         :return:
         """
         try:
-            info = self.client.stat_object(self.bucket_name, object_name, **kwargs)
+            info = self.client.stat_object(self.bucket_name, object_name, version_id=version_id, **kwargs)
             return MinioObjectInfo(info)
         except S3Error as e:
             if e.code == 'NoSuchKey':
@@ -356,13 +364,14 @@ class MinioVfs(VfsContainer):
         except S3Error as e:
             raise VfsError(e)
 
-    def rmfile(self, file_name, **kwargs) -> Any:
+    def rmfile(self, file_name, version_id=None, **kwargs) -> Any:
         """
         Removes a file object from storage
 
         Directories (keys ending with '/') are rejected; use rmdir() instead
 
         :param file_name: full path for object to remove
+        :param version_id: optional object version id
         :param kwargs:
         :return: Object
         """
@@ -370,7 +379,7 @@ class MinioVfs(VfsContainer):
             file_name = str(file_name)
             if file_name.endswith('/'):
                 raise VfsError("rmfile(): cannot remove '{}'; not a file".format(file_name))
-            return self.client.remove_object(self.bucket_name, file_name, **kwargs)
+            return self.client.remove_object(self.bucket_name, file_name, version_id=version_id, **kwargs)
         except S3Error as e:
             raise VfsError(e)
 
@@ -489,19 +498,21 @@ class MinioVfs(VfsContainer):
             Path(tmp_file).unlink(missing_ok=True)
             raise VfsError(e)
 
-    def read_file(self, file_name, offset=0, length=0, **kwargs) -> BytesIO:
+    def read_file(self, file_name, offset=0, length=0, version_id=None, **kwargs) -> BytesIO:
         """
         Reads a binary file to a memory buffer
 
         :param file_name: full file path to read
         :param offset: optional start offset
         :param length: optional length
+        :param version_id: optional object version id
         :param kwargs: optional parameters
         :return: BytesIO buffer
         """
         try:
             file_name = str(file_name)
-            response = self.client.get_object(self.bucket_name, file_name, offset=offset, length=length, **kwargs)
+            response = self.client.get_object(self.bucket_name, file_name, offset=offset, length=length,
+                                              version_id=version_id, **kwargs)
             result = BytesIO(response.read())
             response.close()
             response.release_conn()
@@ -511,7 +522,7 @@ class MinioVfs(VfsContainer):
         except S3Error as e:
             raise VfsError(e)
 
-    def read_file_text(self, file_name, offset=0, length=0, encoding='utf-8', **kwargs) -> StringIO:
+    def read_file_text(self, file_name, offset=0, length=0, encoding='utf-8', version_id=None, **kwargs) -> StringIO:
         """
         Reads a text file to a memory buffer
 
@@ -519,12 +530,14 @@ class MinioVfs(VfsContainer):
         :param offset: optional start offset
         :param length: optional length
         :param encoding: text encoding to decode the object with (default 'utf-8')
+        :param version_id: optional object version id
         :param kwargs: optional parameters
         :return: StringIO buffer
         """
         try:
             file_name = str(file_name)
-            response = self.client.get_object(self.bucket_name, file_name, offset=offset, length=length, **kwargs)
+            response = self.client.get_object(self.bucket_name, file_name, offset=offset, length=length,
+                                              version_id=version_id, **kwargs)
             data = response.read()
             response.close()
             response.release_conn()
@@ -648,32 +661,106 @@ class MinioVfs(VfsContainer):
         except S3Error as e:
             raise VfsError(e)
 
-    def get_object_retention(self, object_name, **kwargs) -> Retention:
+    def get_object_retention(self, object_name, version_id=None, **kwargs) -> Union[Retention, None]:
         """
         Get object retention policy
 
         :param object_name: full path for object
+        :param version_id: optional object version id
         :param kwargs:
-        :return: Retention
+        :return: Retention, or None if no retention is set
         """
         try:
             object_name = str(object_name)
-            return self.client.get_object_retention(self.bucket_name, object_name, **kwargs)
+            return self.client.get_object_retention(self.bucket_name, object_name, version_id=version_id, **kwargs)
         except S3Error as e:
+            if e.code == 'NoSuchObjectLockConfiguration':
+                return None
             raise VfsError(e)
 
-    def set_object_retention(self, object_name, retention: Retention, **kwargs):
+    def set_object_retention(self, object_name, retention: Retention, version_id=None, **kwargs):
         """
         Set object retention policy
 
         :param object_name: full path for object
         :param retention: Retention object
+        :param version_id: optional object version id
         :param kwargs:
         :return: None
         """
         try:
             object_name = str(object_name)
-            self.client.set_object_retention(self.bucket_name, object_name, retention, **kwargs)
+            self.client.set_object_retention(self.bucket_name, object_name, retention, version_id=version_id, **kwargs)
+        except S3Error as e:
+            raise VfsError(e)
+
+    def enable_legal_hold(self, object_name, version_id=None, **kwargs):
+        """
+        Enable legal hold on an object
+
+        :param object_name: full path for object
+        :param version_id: optional object version id
+        :param kwargs:
+        :return: None
+        """
+        try:
+            object_name = str(object_name)
+            return self.client.enable_object_legal_hold(self.bucket_name, object_name, version_id=version_id, **kwargs)
+        except S3Error as e:
+            raise VfsError(e)
+
+    def disable_legal_hold(self, object_name, version_id=None, **kwargs):
+        """
+        Disable legal hold on an object
+
+        :param object_name: full path for object
+        :param version_id: optional object version id
+        :param kwargs:
+        :return: None
+        """
+        try:
+            object_name = str(object_name)
+            return self.client.disable_object_legal_hold(self.bucket_name, object_name, version_id=version_id, **kwargs)
+        except S3Error as e:
+            raise VfsError(e)
+
+    def legal_hold_enabled(self, object_name, version_id=None, **kwargs) -> bool:
+        """
+        Check whether legal hold is enabled on an object
+
+        :param object_name: full path for object
+        :param version_id: optional object version id
+        :param kwargs:
+        :return: True if legal hold is enabled, false otherwise
+        """
+        try:
+            object_name = str(object_name)
+            return self.client.is_object_legal_hold_enabled(self.bucket_name, object_name, version_id=version_id,
+                                                            **kwargs)
+        except S3Error as e:
+            raise VfsError(e)
+
+    def remove_object_bypass(self, object_name, version_id=None, **kwargs):
+        """
+        Delete an object, bypassing GOVERNANCE-mode retention
+
+        Requires the s3:BypassGovernanceRetention permission. COMPLIANCE-mode retention cannot be bypassed.
+
+        :param object_name: full path for object to remove
+        :param version_id: optional object version id
+        :param kwargs:
+        :return: None
+        """
+        try:
+            object_name = str(object_name)
+            errors = self.client.remove_objects(
+                self.bucket_name,
+                [DeleteObject(object_name, version_id)],
+                bypass_governance_mode=True,
+                **kwargs
+            )
+            for err in errors:
+                raise VfsError("remove_object_bypass(): {} {}".format(err.code, err.message))
         except S3Error as e:
             raise VfsError(e)
 
@@ -695,3 +782,15 @@ class MinioVfs(VfsContainer):
             return result
         except S3Error as e:
             raise VfsError(e)
+
+    def ls_versions(self, path=Path('/'), **kwargs) -> List[MinioObjectInfo]:
+        """
+        List object versions of the given path
+
+        Each returned item carries its version_id and is_latest flag
+
+        :param path: path to search
+        :param kwargs: optional parameters
+        :return: List[MinioObjectInfo]
+        """
+        return self.ls(path, include_version=True, **kwargs)

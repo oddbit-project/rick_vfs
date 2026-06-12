@@ -50,3 +50,20 @@ print("Bucket contents:")
 for item in vfs.ls():
     print(item.object_name)
 ```
+
+## Object lock
+
+The S3 backend supports the full set of S3 object-lock primitives — bucket lock
+configuration, versioning, per-object retention (GOVERNANCE / COMPLIANCE), legal
+hold, governance-bypass deletion and version-targeted operations. Lock support is
+exposed through the `VfsObjectLock` and `VfsLockableVolume` capability interfaces, so
+a backend can be probed with `isinstance()`:
+
+```python
+from rick_vfs import VfsObjectLock
+
+if isinstance(vfs, VfsObjectLock):
+    vfs.enable_legal_hold("my-object")
+```
+
+See [Object lock & versioning](docs/object-lock.md) for details.

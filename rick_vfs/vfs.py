@@ -113,3 +113,59 @@ class VfsVolume(abc.ABC):
     @abc.abstractmethod
     def purge(self, **kwargs):
         pass
+
+
+class VfsLockableVolume(abc.ABC):
+    """Capability interface: volume supports object-lock configuration and versioning"""
+
+    @abc.abstractmethod
+    def set_object_lock(self, config):
+        pass
+
+    @abc.abstractmethod
+    def get_object_lock(self):
+        pass
+
+    @abc.abstractmethod
+    def remove_object_lock(self):
+        pass
+
+    @abc.abstractmethod
+    def enable_versioning(self, mfa_delete=False):
+        pass
+
+    @abc.abstractmethod
+    def disable_versioning(self):
+        pass
+
+    @abc.abstractmethod
+    def get_versioning(self):
+        pass
+
+
+class VfsObjectLock(abc.ABC):
+    """Capability interface: container supports per-object locking"""
+
+    @abc.abstractmethod
+    def enable_legal_hold(self, object_name, version_id=None, **kwargs):
+        pass
+
+    @abc.abstractmethod
+    def disable_legal_hold(self, object_name, version_id=None, **kwargs):
+        pass
+
+    @abc.abstractmethod
+    def legal_hold_enabled(self, object_name, version_id=None, **kwargs) -> bool:
+        pass
+
+    @abc.abstractmethod
+    def get_object_retention(self, object_name, version_id=None, **kwargs):
+        pass
+
+    @abc.abstractmethod
+    def set_object_retention(self, object_name, retention, version_id=None, **kwargs):
+        pass
+
+    @abc.abstractmethod
+    def remove_object_bypass(self, object_name, version_id=None, **kwargs):
+        pass

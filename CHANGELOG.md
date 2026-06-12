@@ -7,7 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Object-lock capability interfaces `VfsObjectLock` (per-object locking) and
+  `VfsLockableVolume` (bucket lock configuration + versioning), implemented by
+  `MinioVfs` and `MinioBucket` respectively. Backends can be introspected with
+  `isinstance(vfs, VfsObjectLock)` / `isinstance(volume, VfsLockableVolume)`; the
+  local backend implements neither.
+- Per-object **legal hold**: `MinioVfs.enable_legal_hold`,
+  `disable_legal_hold`, `legal_hold_enabled`.
+- `MinioVfs.remove_object_bypass`: delete an object bypassing GOVERNANCE-mode
+  retention (uses the bulk delete path; COMPLIANCE cannot be bypassed).
+- Explicit `version_id` targeting on `stat`, `rmfile`, `read_file`,
+  `read_file_text`, `get_object_retention`, `set_object_retention`.
+- `MinioVfs.ls_versions`: list object versions (each item carries `version_id`
+  and `is_latest`).
+
 ### Fixed
+
+- `MinioObjectInfo.is_latest` was stored as the raw `'true'`/`'false'` string
+  from minio version listings (so `'false'` evaluated truthy); it is now a real
+  `bool`.
+- `MinioVfs.get_object_retention` now returns `None` when no retention is set
+  instead of raising.
+- `MinioVfs.open_file`: the error-cleanup path referenced an unbound `fd` and
+  called `.unlink()` on a `str`, crashing before the real error surfaced and
+  leaking the temporary file. It now guards the descriptor and removes the temp
+  file on every failure path.
+- `MinioBucket.__init__`: an invalid SSE configuration constructed a
+  `RuntimeError` without raising it. It now raises `VfsError`.
+- `MinioVfs.mkdir`: minio's object-name validation raises `ValueError` (e.g. for
+  `.`/`..` segments), which escaped the backend's error contract. It is now
 
 - `MinioVfs.open_file`: the error-cleanup path referenced an unbound `fd` and
   called `.unlink()` on a `str`, crashing before the real error surfaced and
