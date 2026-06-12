@@ -50,7 +50,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `requirements-dev.txt` updated accordingly.
 - **BREAKING:** dropped Python 3.8 and 3.9 support. Minimum is now Python 3.10
   (`python_requires=">=3.10"`), driven by `testcontainers` 4.x. The CI/tox
-  matrix and `setup.py` classifiers are updated to 3.10 and 3.11.
+  matrix and `setup.py` classifiers cover Python 3.10 through 3.14.
+- Updated all dependencies to their latest releases (`minio` 7.2.20, `pytest` 9,
+  `pytest-cov` 7.1, `coverage` 7.14, `flake8` 7.3, `flake8-black` 0.4, `tox`
+  4.55, `testcontainers` 4.14, `mkdocs` 1.6, `mkdocs-material` 9.7).
 
 ### Removed
 

@@ -31,6 +31,9 @@ setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
+        'Programming Language :: Python :: 3.13',
+        'Programming Language :: Python :: 3.14',
         'Topic :: Internet :: WWW/HTTP',
         'Topic :: Software Development :: Libraries :: Application Frameworks',
         'Topic :: Software Development :: Libraries :: Python Modules',
@@ -41,8 +44,8 @@ setup(
     python_requires=">=3.10",
     extras_require={},
     install_requires=[
-        'python-magic==0.4.27',
-        'minio>=7.1.15',
+        'python-magic>=0.4.27',
+        'minio>=7.2.20',
     ],
     zip_safe=False,
     tests_require=[
