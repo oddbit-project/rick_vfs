@@ -59,8 +59,8 @@ class MinioBucket(VfsVolume):
             region="my-region",
         )
 
-        # create volume with key-based encryption
-        volume = MinioBucket(client, "my-bucket", sse=SseCustomerKey(b"32byteslongsecretkeymustprovided"))
+        # create volume with bucket-level encryption
+        volume = MinioBucket(client, "my-bucket", sse=SSEConfig(Rule.new_sse_s3_rule()))
     """
 
     def __init__(self, client: Minio, bucket_name, **kwargs):
@@ -85,7 +85,7 @@ class MinioBucket(VfsVolume):
         # sse options
         if self.sse is not None:
             if not isinstance(self.sse, SSEConfig):
-                RuntimeError("Invalid SSE configuration")
+                raise VfsError("Invalid SSE configuration")
 
         if dict_extract(kwargs, 'auto_create', True):
             if not self.exists():
@@ -463,6 +463,7 @@ class MinioVfs(VfsContainer):
 
         # generate temp file name
         tmp_file = tempfile.mktemp()
+        fd = None
         try:
             file_name = str(file_name)
             # fetch from server to temp file
@@ -475,11 +476,13 @@ class MinioVfs(VfsContainer):
             return tempfile._TemporaryFileWrapper(fd, tmp_file)
 
         except S3Error as e:
+            Path(tmp_file).unlink(missing_ok=True)
             raise VfsError(e)
 
         except BaseException as e:
-            fd.close()
-            tmp_file.unlink()
+            if fd is not None:
+                fd.close()
+            Path(tmp_file).unlink(missing_ok=True)
             raise VfsError(e)
 
     def read_file(self, file_name, offset=0, length=0, **kwargs) -> BytesIO:
