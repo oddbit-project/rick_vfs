@@ -1,3 +1,4 @@
+import os
 import tempfile
 from datetime import timedelta
 from io import BytesIO, StringIO
@@ -16,7 +17,7 @@ from minio.versioningconfig import VersioningConfig
 from minio import Minio, S3Error
 from minio.datatypes import Object, Bucket
 
-from rick_vfs.utils import ordered_dict_to_dict, dict_extract
+from rick_vfs.utils import dict_extract
 from rick_vfs.vfs import VfsObjectInfo, VfsVolume, VfsError, VfsContainer
 
 
@@ -34,11 +35,10 @@ class MinioObjectInfo(VfsObjectInfo):
         self.atime = src.last_modified
         self.mtime = src.last_modified
         self.owner_id = src.owner_id
+        self.attributes = {}
 
-        # private access to underlying OrderedDict of HTTPHeaderDict
         if src.metadata is not None:
-            if getattr(src.metadata, '_container', None) is not None:
-                self.attributes = ordered_dict_to_dict(src.metadata._container)
+            self.attributes = dict(src.metadata)
         self.etag = src.etag
         self.version_id = src.version_id
         self.is_latest = src.is_latest
@@ -91,7 +91,6 @@ class MinioBucket(VfsVolume):
             if not self.exists():
                 self.create(**kwargs)
 
-    @property
     def root_path(self) -> str:
         return self.bucket_name
 
@@ -359,8 +358,9 @@ class MinioVfs(VfsContainer):
 
     def rmfile(self, file_name, **kwargs) -> Any:
         """
-        Removes an object from storage
-        Note: this specific implementation can also remove directories
+        Removes a file object from storage
+
+        Directories (keys ending with '/') are rejected; use rmdir() instead
 
         :param file_name: full path for object to remove
         :param kwargs:
@@ -368,6 +368,8 @@ class MinioVfs(VfsContainer):
         """
         try:
             file_name = str(file_name)
+            if file_name.endswith('/'):
+                raise VfsError("rmfile(): cannot remove '{}'; not a file".format(file_name))
             return self.client.remove_object(self.bucket_name, file_name, **kwargs)
         except S3Error as e:
             raise VfsError(e)
@@ -423,7 +425,8 @@ class MinioVfs(VfsContainer):
         :return: Path() object to the temporary file
         """
         # generate temp file name
-        tmp_file = tempfile.mktemp()
+        fd, tmp_file = tempfile.mkstemp()
+        os.close(fd)
         try:
             file_name = str(file_name)
             # fetch from server to temp file
@@ -462,7 +465,8 @@ class MinioVfs(VfsContainer):
                 del kwargs[key]
 
         # generate temp file name
-        tmp_file = tempfile.mktemp()
+        osfd, tmp_file = tempfile.mkstemp()
+        os.close(osfd)
         fd = None
         try:
             file_name = str(file_name)
@@ -507,26 +511,31 @@ class MinioVfs(VfsContainer):
         except S3Error as e:
             raise VfsError(e)
 
-    def read_file_text(self, file_name, offset=0, length=0, **kwargs) -> StringIO:
+    def read_file_text(self, file_name, offset=0, length=0, encoding='utf-8', **kwargs) -> StringIO:
         """
         Reads a text file to a memory buffer
 
         :param file_name: full file path to read
         :param offset: optional start offset
         :param length: optional length
+        :param encoding: text encoding to decode the object with (default 'utf-8')
         :param kwargs: optional parameters
-        :return: BytesIO buffer
+        :return: StringIO buffer
         """
         try:
             file_name = str(file_name)
             response = self.client.get_object(self.bucket_name, file_name, offset=offset, length=length, **kwargs)
-            result = StringIO(str(response.read(), 'utf-8'))
+            data = response.read()
             response.close()
             response.release_conn()
+            result = StringIO(str(data, encoding))
             result.seek(0)
             return result
 
         except S3Error as e:
+            raise VfsError(e)
+
+        except (UnicodeDecodeError, LookupError) as e:
             raise VfsError(e)
 
     def url_file_get(self, file_name, expires=timedelta(hours=1), **kwargs) -> str:

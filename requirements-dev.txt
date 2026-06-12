@@ -6,7 +6,6 @@ flake8_black==0.3.6
 coverage==7.2.5
 tox==4.5.1
 testcontainers[minio]>=4.0.0
-psycopg2-binary==2.9.3
 mkdocs==1.4.3
 mkdocs-material
 mkdocs-material-extensions

@@ -72,7 +72,7 @@ class VfsContainer(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def read_file_text(self, file_name, offset=0, length=0, **kwargs) -> StringIO:
+    def read_file_text(self, file_name, offset=0, length=0, encoding='utf-8', **kwargs) -> StringIO:
         pass
 
     @abc.abstractmethod

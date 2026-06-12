@@ -32,6 +32,7 @@ class LocalObjectInfo(VfsObjectInfo):
         self.mtime = datetime.fromtimestamp(src.st_mtime)
         self.owner_id = src.st_uid
         self.permissions = src.st_mode
+        self.attributes = {}
         self.is_latest = True
         self.is_dir = name.is_dir()
         self.is_file = name.is_file()
@@ -328,15 +329,16 @@ class LocalVfs(VfsContainer):
         except OSError as e:
             raise VfsError(e)
 
-    def read_file_text(self, file_name, offset=0, length=0, **kwargs) -> StringIO:
+    def read_file_text(self, file_name, offset=0, length=0, encoding='utf-8', **kwargs) -> StringIO:
         """
         Reads a text file to a memory buffer
 
         :param file_name: full file path to read
         :param offset: optional start offset
         :param length: optional length
+        :param encoding: text encoding to decode the file with (default 'utf-8')
         :param kwargs: optional parameters
-        :return: BytesIO buffer
+        :return: StringIO buffer
         """
         path = self.volume.resolve_path(file_name)
         if not path.is_file():
@@ -348,11 +350,14 @@ class LocalVfs(VfsContainer):
         try:
             with open(path, 'rb') as f:
                 f.seek(offset)
-                result = StringIO(str(f.read(length), 'utf-8'))
+                result = StringIO(str(f.read(length), encoding))
                 result.seek(0)
                 return result
 
         except FileNotFoundError as e:
+            raise VfsError(e)
+
+        except (UnicodeDecodeError, LookupError) as e:
             raise VfsError(e)
 
         except OSError as e:
@@ -403,8 +408,6 @@ class LocalVfs(VfsContainer):
         try:
             shutil.copyfile(local_file, path, follow_symlinks=True)
         except OSError as e:
-            raise VfsError(e)
-        except shutil.SameFileError as e:
             raise VfsError(e)
 
     def ls(self, path=Path('/'), **kwargs) -> List[LocalObjectInfo]:
