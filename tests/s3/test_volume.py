@@ -1,7 +1,7 @@
 import json
 
 import pytest
-from minio import Minio, xml
+from minio import xml
 from minio.commonconfig import ENABLED, Filter, AndOperator, DISABLED, Tags, GOVERNANCE
 from minio.lifecycleconfig import LifecycleConfig, Rule as LCRule, Transition, Expiration
 from minio.objectlockconfig import ObjectLockConfig, DAYS
@@ -50,14 +50,8 @@ SSE_CONFIG = SSEConfig(SSERule.new_sse_s3_rule())
 
 
 @pytest.fixture()
-def client():
-    client = Minio(
-        "localhost:9010",
-        secure=False,
-        access_key="SomeTestUser",
-        secret_key="SomeTestPassword",
-    )
-    return client
+def client(minio_container):
+    return minio_container.get_client()
 
 
 class TestMinioVolume:

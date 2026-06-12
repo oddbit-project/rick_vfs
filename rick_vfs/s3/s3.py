@@ -334,7 +334,7 @@ class MinioVfs(VfsContainer):
             if not directory_name.endswith('/'):
                 directory_name = str(directory_name) + '/'
             return self.client.put_object(self.bucket_name, directory_name, length=0, data=BytesIO(b""), **kwargs)
-        except S3Error as e:
+        except (S3Error, ValueError) as e:
             raise VfsError(e)
 
     def rmdir(self, directory_name, **kwargs) -> Any:

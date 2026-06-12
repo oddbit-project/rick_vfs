@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 import urllib3
-from minio import Minio
 from minio.commonconfig import Tags
 
 from rick_vfs import VfsError
@@ -12,13 +11,8 @@ from rick_vfs.s3 import MinioBucket, MinioVfs
 
 
 @pytest.fixture()
-def volume():
-    client = Minio(
-        "localhost:9010",
-        secure=False,
-        access_key="SomeTestUser",
-        secret_key="SomeTestPassword",
-    )
+def volume(minio_container):
+    client = minio_container.get_client()
     volume = MinioBucket(client, 'test-bucket-vfs')
     # recycle bucket
     volume.purge()
